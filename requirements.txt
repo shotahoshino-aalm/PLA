@@ -1,2 +1,2 @@
 gspread
-paramiko
+boto3
