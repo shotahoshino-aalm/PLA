@@ -18,7 +18,7 @@ def main():
     # S3バケット名をホスト名から自動抽出 (例: my-bucket.s3.amazonaws.com -> my-bucket)
     bucket_name = host_string.split('.s3.')[0] if '.s3.' in host_string else host_string
     
-    file_name = '/app/cdn.3ple.jp/webroot/3ple/merchantcenter/Google PLA広告配信商品エントリーシート.txt' 
+    file_name = 'app/cdn.3ple.jp/webroot/3ple/merchantcenter/Google PLA広告配信商品エントリーシート.txt' 
 
     # 2. Google Sheetsからデータ取得
     print("Google Sheetsからデータを取得中...")
