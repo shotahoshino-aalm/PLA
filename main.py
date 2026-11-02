@@ -16,7 +16,7 @@ def main():
     ftp_pass = os.environ['FTP_PASS']
     
     # サーバーに保存するファイル名（必要に応じてディレクトリパスを追加: 'public_html/data_feed.txt'など）
-    file_name = 'data_feed.txt' 
+    file_name = '/cdn.3ple.jp/app/cdn.3ple.jp/webroot/3ple/merchantcenter/Google PLA広告配信商品エントリーシート.txt' 
 
     # 2. Google Sheetsからデータ取得
     print("Google Sheetsからデータを取得中...")
