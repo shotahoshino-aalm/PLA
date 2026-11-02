@@ -1,7 +1,7 @@
 import os
 import json
 import gspread
-import paramiko
+import boto3
 import io
 import csv
 
@@ -10,10 +10,13 @@ def main():
     gcp_sa_json = os.environ['GCP_SA_JSON']
     spreadsheet_id = os.environ['SPREADSHEET_ID']
     
-    sftp_host = os.environ['FTP_HOST']
-    sftp_port = int(os.environ.get('FTP_PORT', 22)) # SFTPは通常22番ポートです
-    sftp_user = os.environ['FTP_USER']
-    sftp_pass = os.environ['FTP_PASS']
+    # 登録済みのFTP情報をAWS認証情報として流用
+    aws_access_key = os.environ['FTP_USER']
+    aws_secret_key = os.environ['FTP_PASS']
+    host_string = os.environ['FTP_HOST']
+    
+    # S3バケット名をホスト名から自動抽出 (例: my-bucket.s3.amazonaws.com -> my-bucket)
+    bucket_name = host_string.split('.s3.')[0] if '.s3.' in host_string else host_string
     
     file_name = 'data_feed.txt' 
 
@@ -29,27 +32,24 @@ def main():
     output = io.StringIO()
     writer = csv.writer(output, delimiter='\t', lineterminator='\n')
     writer.writerows(data)
-    tsv_content = output.getvalue().encode('utf-8')
+    tsv_content = output.getvalue()
 
-    # 4. SFTPサーバーへアップロード
-    print(f"SFTPサーバー ({sftp_host}:{sftp_port}) へ接続中...")
+    # 4. Amazon S3 API (ポート443) へアップロード
+    print(f"Amazon S3 (バケット: {bucket_name}) へ接続中...")
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id=aws_access_key,
+        aws_secret_access_key=aws_secret_key,
+        region_name='ap-northeast-1' # 日本（東京）リージョンを指定
+    )
     
-    # SSHクライアントの設定
-    transport = paramiko.Transport((sftp_host, sftp_port))
-    try:
-        transport.connect(username=sftp_user, password=sftp_pass)
-        sftp = paramiko.SFTPClient.from_transport(transport)
-        
-        # メモリ上のデータをファイルとしてアップロード
-        with io.BytesIO(tsv_content) as bio:
-            sftp.putfo(bio, file_name)
-        
-        print("SFTPサーバーへのアップロードが完了しました！")
-        
-    finally:
-        if 'sftp' in locals():
-            sftp.close()
-        transport.close()
+    s3.put_object(
+        Bucket=bucket_name,
+        Key=file_name,
+        Body=tsv_content,
+        ContentType='text/plain'
+    )
+    print("S3へのアップロードが完了しました！")
 
 if __name__ == "__main__":
     main()
