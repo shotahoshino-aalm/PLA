@@ -1,7 +1,7 @@
 import os
 import json
 import gspread
-import ftplib
+import paramiko
 import io
 import csv
 
@@ -10,13 +10,12 @@ def main():
     gcp_sa_json = os.environ['GCP_SA_JSON']
     spreadsheet_id = os.environ['SPREADSHEET_ID']
     
-    ftp_host = os.environ['FTP_HOST']
-    ftp_port = int(os.environ.get('FTP_PORT', 21))
-    ftp_user = os.environ['FTP_USER']
-    ftp_pass = os.environ['FTP_PASS']
+    sftp_host = os.environ['FTP_HOST']
+    sftp_port = int(os.environ.get('FTP_PORT', 22)) # SFTPは通常22番ポートです
+    sftp_user = os.environ['FTP_USER']
+    sftp_pass = os.environ['FTP_PASS']
     
-    # サーバーに保存するファイル名（必要に応じてディレクトリパスを追加: 'public_html/data_feed.txt'など）
-    file_name = '/cdn.3ple.jp/app/cdn.3ple.jp/webroot/3ple/merchantcenter/Google PLA広告配信商品エントリーシート.txt' 
+    file_name = 'data_feed.txt' 
 
     # 2. Google Sheetsからデータ取得
     print("Google Sheetsからデータを取得中...")
@@ -32,17 +31,25 @@ def main():
     writer.writerows(data)
     tsv_content = output.getvalue().encode('utf-8')
 
-    # 4. FTPサーバーへアップロード
-    print(f"FTPサーバー ({ftp_host}) へ接続中...")
-    with ftplib.FTP() as ftp:
-        ftp.connect(ftp_host, ftp_port)
-        ftp.login(ftp_user, ftp_pass)
+    # 4. SFTPサーバーへアップロード
+    print(f"SFTPサーバー ({sftp_host}:{sftp_port}) へ接続中...")
+    
+    # SSHクライアントの設定
+    transport = paramiko.Transport((sftp_host, sftp_port))
+    try:
+        transport.connect(username=sftp_user, password=sftp_pass)
+        sftp = paramiko.SFTPClient.from_transport(transport)
         
-        # バイナリモードでアップロード
+        # メモリ上のデータをファイルとしてアップロード
         with io.BytesIO(tsv_content) as bio:
-            ftp.storbinary(f'STOR {file_name}', bio)
-            
-    print("FTPサーバーへのアップロードが完了しました！")
+            sftp.putfo(bio, file_name)
+        
+        print("SFTPサーバーへのアップロードが完了しました！")
+        
+    finally:
+        if 'sftp' in locals():
+            sftp.close()
+        transport.close()
 
 if __name__ == "__main__":
     main()
